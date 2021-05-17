@@ -1,5 +1,12 @@
-import sys
+'''
+Chris Pellerito
+CMPT 440 Final Project
+This prgram is a version of the grep utility that takes
+a regular expression and text file as input and returns
+all full lines that match the regular expression.
+'''
 import copy
+import argparse
 
 
 # create class for states
@@ -8,22 +15,14 @@ class state:
         self.state = state
         self.tran = []
         self.accepts = False
-        self.value = False
 
     # create method to add tranistion to states
     def add_tran(self, in_state, to_state, value):
         self.tran.append([in_state, to_state, value])
 
-    def remove_tran(self, index):
-        self.tran.remove(self.index)
-
     # create method to make a state accepting
     def set_accepts(self):
         self.accepts = True
-
-    # create method that sets the value of the state when computing
-    def set_value(self):
-        self.value = True
 
     # create method to print states and if they accept or reject
     def print_states(self):
@@ -41,14 +40,55 @@ class state:
                 print("Value: " + self.tran[i][2])
 
 
+def compute(accept_states, transitions, input_str):
+    # compute on NFA
+    # set current state to initial state
+    current_state = "q0"
+    # loop[ through the input string for each character]
+    for t in input_str:
+        fail = 0  # initialize fail check
+        # loop through the list of transitions, if the current state =
+        # to the in_state of a transition, check if the value of that
+        # transition = to t. If it is set current state to to_state
+        for trans in transitions:
+            if trans[0] == current_state:
+                if trans[2] == t:
+                    current_state = trans[1]
+            else:
+                fail += 1
+                # if you gop through the whole list of transitions and
+                # none have the same in_state and value, return False
+                if fail == len(transitions):
+                    return False
+    # if you go through the entire string and the current state
+    # is in the list of accepting states return True, otherwise false
+    if current_state in accept_states:
+        return True
+
+    else:
+        return False
+
+
 def main():
+    # initialize parser for CLI arguments
+    parser = argparse.ArgumentParser()
+    # create optional paramater for NFA output file
+    parser.add_argument("-n", help="File name of NFA output file", type=str)
+    # create optional parameter for DFA output file
+    parser.add_argument("-d", help="File name of DFA output file", type=str)
+    # create parameter for reg exression
+    parser.add_argument("regex")
+    # create paramter for input file
+    parser.add_argument("file")
+    args = parser.parse_args()
+
     # open the inpuut file from stdin as input_file
-    with open(sys.argv[2], 'r') as input_file:
+    with open(args.file, 'r') as input_file:
         # reads lines from input file removes the \n and adds to list
         input_list = [line.rstrip() for line in input_file]
 
     # add reg expression from input to variable
-    reg_exp = sys.argv[1]
+    reg_exp = args.regex
 
     # convert the input from a list to a string to find the alphabet
     input_alpha = ''.join(input_list).lower()
@@ -155,7 +195,56 @@ def main():
                 if m not in alpha:
                     dfa_states[dfa].add_tran(dfa_states[dfa - 1].state, "q" + str((len(dfa_states) - 1)), m)
 
-    # compute on DFA
+    # compute on NFA
+    # create list of accepting states
+    for accept in dfa_states:
+        if accept.accepts:
+            accept_states.append(accept.state)
 
+    # create list of all transitions for easy access
+    transitions = []
+    for index in states:
+        if len(index.tran) == 1:
+            transitions.append(index.tran[0])
+
+        elif len(index.tran) > 1:
+            for x in index.tran:
+                transitions.append(x)
+
+    # call compute function on the NFA
+    for input_str in input_list:
+        # if compute function returns True print the input
+        if compute(accept_states, transitions, input_str):
+            print(input_str)
+
+    # output NFA
+    # if optional parameter is not empty open file with name from CLI
+    if args.n is not None:
+        nfa_file = open(args.n, "w")
+        for out in transitions:
+            if out[1] in accept_states:
+                nfa_file.write(out[0] + "->" + out[1] + "[label=" + out[2] + "] accepts" + "\n")
+            else:
+                nfa_file.write(out[0] + "->" + out[1] + "[label=" + out[2] + "]" + "\n")
+
+    # output DFA
+    # create list of all transitions
+    dfa_transitions = []
+    for dfa_index in dfa_states:
+        if len(dfa_index.tran) == 1:
+            dfa_transitions.append(dfa_index.tran[0])
+
+        elif len(dfa_index.tran) > 1:
+            for n in dfa_index.tran:
+                dfa_transitions.append(n)
+
+    # if optional paramter is not empty open file with name from CLI
+    if args.d is not None:
+        dfa_file = open(args.d, "w")
+        for dfa_out in dfa_transitions:
+            if dfa_out[1] in accept_states:
+                dfa_file.write(dfa_out[0] + "->" + dfa_out[1] + "[label=" + dfa_out[2] + "] accepts" + "\n")
+            else:
+                dfa_file.write(dfa_out[0] + "->" + dfa_out[1] + "[label=" + dfa_out[2] + "]" + "\n")
 
 main()
