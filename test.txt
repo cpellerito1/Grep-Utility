@@ -1,4 +1,10 @@
 a
-aba
-aaa
+ab
+aaab
 abba
+aba
+aabbaabb
+aaa
+abab
+abbb
+0101
