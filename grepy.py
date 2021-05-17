@@ -1,11 +1,5 @@
-'''
-Chris Pellerito
-CMPT 440 Final Project
-This prgram is a version of the grep utility that takes
-a regular expression and text file as input and returns
-all full lines that match the regular expression.
-'''
 import sys
+import copy
 
 
 # create class for states
@@ -14,14 +8,22 @@ class state:
         self.state = state
         self.tran = []
         self.accepts = False
+        self.value = False
 
     # create method to add tranistion to states
     def add_tran(self, in_state, to_state, value):
         self.tran.append([in_state, to_state, value])
 
+    def remove_tran(self, index):
+        self.tran.remove(self.index)
+
     # create method to make a state accepting
     def set_accepts(self):
         self.accepts = True
+
+    # create method that sets the value of the state when computing
+    def set_value(self):
+        self.value = True
 
     # create method to print states and if they accept or reject
     def print_states(self):
@@ -61,6 +63,7 @@ def main():
     states = []  # empty list to hold the States objects
     previous = ""
     eps = "~e"  # create variable for value epsilon
+    accept_states = []  # empty list to hold accepting states
 
     # check to make sure the regular expression is valid
     for check in reg_exp:
@@ -116,6 +119,7 @@ def main():
                 states[len(states) - 1].add_tran(states[len(states) - 1].state, states[para].state, eps)
                 if states[para].state == "q0" and i == len(reg_exp) - 1:
                     states[0].set_accepts()
+                    accept_states.append(states[0].state)
 
             # if previous isn't ) add transition from current state to curerent state
             else:
@@ -125,6 +129,33 @@ def main():
         # if i is the length of reg exp set last state to accepts
         if i == len(reg_exp) - 1:
             states[len(states) - 1].set_accepts()
+            accept_states.append(states[len(states) - 1].state)
+
+    # NFA to DFA
+    # deepcopy states to dfa_states so NFA stays unchanged and DFA
+    # can be manipulated
+    dfa_states = copy.deepcopy(states)
+    # add another state to be the trap state
+    dfa_states.append(state("q" + str(len(dfa_states))))
+    # loop through list of objects to add/remove transitions
+    for dfa in range(len(dfa_states)):
+        alpha = ""
+        if len(dfa_states[dfa].tran) > 0:
+            # add all values that you transition on to a variable to check
+            # if all charcters of the alphabet have a transition
+            for p in dfa_states[dfa].tran:
+                if p[2] in alphabet:
+                    alpha += p[2]
+                # if transition value is an epsilon remove transition
+                if p[2] == eps:
+                    dfa_states[dfa].tran.remove(p)
+
+            # check if all characters of alphabet have a transition
+            for m in alphabet:
+                if m not in alpha:
+                    dfa_states[dfa].add_tran(dfa_states[dfa - 1].state, "q" + str((len(dfa_states) - 1)), m)
+
+    # compute on DFA
 
 
 main()
